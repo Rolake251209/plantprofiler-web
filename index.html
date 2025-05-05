@@ -1,74 +1,63 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PlantProfiler - Scan Your Plant</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 20px;
-    }
-    video, canvas {
-      width: 100%;
-      max-width: 400px;
-      margin-top: 20px;
-    }
-    #result {
-      margin-top: 20px;
-      font-size: 1.2em;
-    }
-  </style>
-</head>
-<body>
-  <h1>🌿 PlantProfiler</h1>
-  <p>Click "Start Camera" and then "Scan Plant" to identify.</p>
-  <div id="webcam-container"></div>
-  <button id="start-button">Start Camera</button>
-  <button id="scan-button" disabled>Scan Plant</button>
-  <div id="result">Result will appear here.</div>
+<html>
+  <head>
+    <title>PlantProfiler - Scan Plant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 20px;
+      }
+      #webcam {
+        margin-top: 20px;
+      }
+      #label-container {
+        margin-top: 20px;
+        font-size: 1.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🌿 PlantProfiler</h1>
+    <p>Click below to start scanning your plant</p>
+    <button onclick="init()">Start Camera</button>
+    <div id="webcam" class="webcam"></div>
+    <div id="label-container"></div>
 
-  <script type="module">
-    import * as tmImage from "https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js";
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+    <script type="text/javascript">
+      const URL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/";
+      let model, webcam, labelContainer, maxPredictions;
 
-    const modelURL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/model.json";
-    const metadataURL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/metadata.json";
+      async function init() {
+        const modelURL = URL + "model.json";
+        const metadataURL = URL + "metadata.json";
 
-    let model, webcam;
+        model = await tmImage.load(modelURL, metadataURL);
+        maxPredictions = model.getTotalClasses();
 
-    async function loadModel() {
-      model = await tmImage.load(modelURL, metadataURL);
-    }
+        webcam = new tmImage.Webcam(400, 300, true);
+        await webcam.setup();
+        await webcam.play();
+        window.requestAnimationFrame(loop);
 
-    async function startCamera() {
-      webcam = new tmImage.Webcam(400, 300, true);
-      await webcam.setup();
-      await webcam.play();
-      document.getElementById("webcam-container").innerHTML = ""; // clear any old canvas
-      document.getElementById("webcam-container").appendChild(webcam.canvas);
-      document.getElementById("scan-button").disabled = false;
-      window.requestAnimationFrame(updateLoop);
-    }
+        document.getElementById("webcam").appendChild(webcam.canvas);
+        labelContainer = document.getElementById("label-container");
+      }
 
-    async function updateLoop() {
-      webcam.update();
-      window.requestAnimationFrame(updateLoop);
-    }
+      async function loop() {
+        webcam.update();
+        await predict();
+        window.requestAnimationFrame(loop);
+      }
 
-    async function predict() {
-      const predictions = await model.predict(webcam.canvas);
-      predictions.sort((a, b) => b.probability - a.probability);
-      const best = predictions[0];
-      document.getElementById("result").innerText = `Detected: ${best.className} (${(best.probability * 100).toFixed(1)}%)`;
-    }
-
-    // Load the model on page load
-    loadModel();
-
-    // Button handlers
-    document.getElementById("start-button").addEventListener("click", startCamera);
-    document.getElementById("scan-button").addEventListener("click", predict);
-  </script>
-</body>
+      async function predict() {
+        const prediction = await model.predict(webcam.canvas);
+        prediction.sort((a, b) => b.probability - a.probability);
+        const topResult = prediction[0];
+        labelContainer.innerHTML = `Detected: <strong>${topResult.className}</strong> (${(topResult.probability * 100).toFixed(1)}%)`;
+      }
+    </script>
+  </body>
 </html>
