@@ -1,64 +1,74 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>PlantProfiler</title>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PlantProfiler - Scan Your Plant</title>
   <style>
     body {
+      font-family: Arial, sans-serif;
       text-align: center;
-      font-family: Arial;
       padding: 20px;
     }
     video, canvas {
       width: 100%;
       max-width: 400px;
+      margin-top: 20px;
     }
     #result {
-      font-size: 18px;
       margin-top: 20px;
+      font-size: 1.2em;
     }
   </style>
 </head>
 <body>
-  <h1>🌱 Plant Identifier</h1>
+  <h1>🌿 PlantProfiler</h1>
+  <p>Click "Start Camera" and then "Scan Plant" to identify.</p>
   <div id="webcam-container"></div>
-  <button id="scan-button">Scan Plant</button>
-  <div id="result">Loading...</div>
+  <button id="start-button">Start Camera</button>
+  <button id="scan-button" disabled>Scan Plant</button>
+  <div id="result">Result will appear here.</div>
 
   <script type="module">
     import * as tmImage from "https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js";
 
-    const URL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/";
+    const modelURL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/model.json";
+    const metadataURL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/metadata.json";
+
     let model, webcam;
 
-    async function init() {
-      const modelURL = URL + "model.json";
-      const metadataURL = URL + "metadata.json";
-
+    async function loadModel() {
       model = await tmImage.load(modelURL, metadataURL);
+    }
+
+    async function startCamera() {
       webcam = new tmImage.Webcam(400, 300, true);
-
-      await webcam.setup(); // request camera access
+      await webcam.setup();
       await webcam.play();
-
+      document.getElementById("webcam-container").innerHTML = ""; // clear any old canvas
       document.getElementById("webcam-container").appendChild(webcam.canvas);
-      window.requestAnimationFrame(loop);
+      document.getElementById("scan-button").disabled = false;
+      window.requestAnimationFrame(updateLoop);
     }
 
-    async function loop() {
+    async function updateLoop() {
       webcam.update();
-      window.requestAnimationFrame(loop);
+      window.requestAnimationFrame(updateLoop);
     }
 
-    document.getElementById("scan-button").addEventListener("click", async () => {
-      const prediction = await model.predict(webcam.canvas);
-      prediction.sort((a, b) => b.probability - a.probability);
-      const top = prediction[0];
-      document.getElementById("result").innerText = `Detected: ${top.className} (${Math.round(top.probability * 100)}%)`;
-    });
+    async function predict() {
+      const predictions = await model.predict(webcam.canvas);
+      predictions.sort((a, b) => b.probability - a.probability);
+      const best = predictions[0];
+      document.getElementById("result").innerText = `Detected: ${best.className} (${(best.probability * 100).toFixed(1)}%)`;
+    }
 
-    init();
+    // Load the model on page load
+    loadModel();
+
+    // Button handlers
+    document.getElementById("start-button").addEventListener("click", startCamera);
+    document.getElementById("scan-button").addEventListener("click", predict);
   </script>
 </body>
 </html>
