@@ -1,63 +1,64 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Plant Identifier</title>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        padding: 20px;
-      }
-      video {
-        width: 100%;
-        max-width: 400px;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>PlantProfiler - Identify Your Plant</h1>
-    <video id="webcam" autoplay playsinline width="400" height="300"></video>
-    <br />
-    <button onclick="predict()">Scan Plant</button>
-    <p id="result">Prediction will appear here...</p>
+<head>
+  <title>PlantProfiler</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial;
+      padding: 20px;
+    }
+    video, canvas {
+      width: 100%;
+      max-width: 400px;
+    }
+    #result {
+      font-size: 18px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌱 Plant Identifier</h1>
+  <div id="webcam-container"></div>
+  <button id="scan-button">Scan Plant</button>
+  <div id="result">Loading...</div>
 
-    <script type="module">
-      import * as tmImage from "https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js";
+  <script type="module">
+    import * as tmImage from "https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js";
 
-      const URL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/";
-      let model, webcam, labelContainer, maxPredictions;
+    const URL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/";
+    let model, webcam;
 
-      async function init() {
-        const modelURL = https://teachablemachine.withgoogle.com/models/8fOil3pjK/model.json";
-        const metadataURL = https://teachablemachine.withgoogle.com/models/8fOil3pjK/metadata.json";
+    async function init() {
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
 
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
+      model = await tmImage.load(modelURL, metadataURL);
+      webcam = new tmImage.Webcam(400, 300, true);
 
-        webcam = new tmImage.Webcam(400, 300, true);
-        await webcam.setup();
-        await webcam.play();
-        window.requestAnimationFrame(loop);
+      await webcam.setup(); // request camera access
+      await webcam.play();
 
-        document.getElementById("webcam").appendChild(webcam.canvas);
-      }
+      document.getElementById("webcam-container").appendChild(webcam.canvas);
+      window.requestAnimationFrame(loop);
+    }
 
-      async function loop() {
-        webcam.update();
-        window.requestAnimationFrame(loop);
-      }
+    async function loop() {
+      webcam.update();
+      window.requestAnimationFrame(loop);
+    }
 
-      window.predict = async function () {
-        const prediction = await model.predict(webcam.canvas);
-        prediction.sort((a, b) => b.probability - a.probability);
-        document.getElementById("result").innerText =
-          "Detected: " + prediction[0].className + " (" +
-          Math.round(prediction[0].probability * 100) + "%)";
-      };
+    document.getElementById("scan-button").addEventListener("click", async () => {
+      const prediction = await model.predict(webcam.canvas);
+      prediction.sort((a, b) => b.probability - a.probability);
+      const top = prediction[0];
+      document.getElementById("result").innerText = `Detected: ${top.className} (${Math.round(top.probability * 100)}%)`;
+    });
 
-      init();
-    </script>
-  </body>
+    init();
+  </script>
+</body>
 </html>
