@@ -1,63 +1,82 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>PlantProfiler - Scan Plant</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        text-align: center;
-        padding: 20px;
-      }
-      #webcam {
-        margin-top: 20px;
-      }
-      #label-container {
-        margin-top: 20px;
-        font-size: 1.2em;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>🌿 PlantProfiler</h1>
-    <p>Click below to start scanning your plant</p>
-    <button onclick="init()">Start Camera</button>
-    <div id="webcam" class="webcam"></div>
-    <div id="label-container"></div>
+<head>
+  <title>PlantProfiler Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    video {
+      margin-top: 20px;
+      border: 2px solid #4CAF50;
+      border-radius: 10px;
+    }
+    #label {
+      margin-top: 20px;
+      font-size: 1.2em;
+      color: #333;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌱 PlantProfiler Scanner</h1>
+  <p>Click below to start scanning your plant.</p>
+  <button onclick="start()">Start Scan</button>
+  <br>
+  <video id="webcam" width="400" height="300" autoplay playsinline></video>
+  <div id="label"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
-    <script type="text/javascript">
-      const URL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/";
-      let model, webcam, labelContainer, maxPredictions;
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+  <script>
+    const URL = "https://teachablemachine.withgoogle.com/models/8fOil3pjK/";
+    let model, webcam, isScanning = false;
 
-      async function init() {
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
+    async function start() {
+      if (isScanning) return;
+      isScanning = true;
 
-        model = await tmImage.load(modelURL, metadataURL);
-        maxPredictions = model.getTotalClasses();
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
 
-        webcam = new tmImage.Webcam(400, 300, true);
-        await webcam.setup();
-        await webcam.play();
-        window.requestAnimationFrame(loop);
+      model = await tmImage.load(modelURL, metadataURL);
+      webcam = document.getElementById("webcam");
 
-        document.getElementById("webcam").appendChild(webcam.canvas);
-        labelContainer = document.getElementById("label-container");
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      webcam.srcObject = stream;
 
-      async function loop() {
-        webcam.update();
-        await predict();
-        window.requestAnimationFrame(loop);
-      }
+      webcam.addEventListener("loadeddata", () => {
+        predictLoop();
+      });
+    }
 
-      async function predict() {
-        const prediction = await model.predict(webcam.canvas);
+    async function predictLoop() {
+      const canvas = document.createElement("canvas");
+      const label = document.getElementById("label");
+
+      setInterval(async () => {
+        canvas.width = webcam.videoWidth;
+        canvas.height = webcam.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(webcam, 0, 0);
+
+        const prediction = await model.predict(canvas);
         prediction.sort((a, b) => b.probability - a.probability);
-        const topResult = prediction[0];
-        labelContainer.innerHTML = `Detected: <strong>${topResult.className}</strong> (${(topResult.probability * 100).toFixed(1)}%)`;
-      }
-    </script>
-  </body>
+        const best = prediction[0];
+        label.innerHTML = `Detected: <strong>${best.className}</strong> (${(best.probability * 100).toFixed(1)}%)`;
+      }, 1500);
+    }
+  </script>
+</body>
 </html>
